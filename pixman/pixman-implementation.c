@@ -63,7 +63,29 @@ typedef struct
     } cache [N_CACHED_FAST_PATHS];
 } cache_t;
 
+#if defined(_MSC_VER)
+#include <windows.h>
+static LONG
+  semaphore_mutex = 0;
+static cache_t fast_path_cache;
+#else
 PIXMAN_DEFINE_THREAD_LOCAL (cache_t, fast_path_cache);
+#endif
+
+static inline void lock_semaphore_mutex(void)
+{
+#if defined(_MSC_VER)
+  while (InterlockedCompareExchange(&semaphore_mutex,1L,0L) != 0)
+    Sleep(10);
+#endif
+}
+
+static inline void unlock_semaphore_mutex(void)
+{
+#if defined(_MSC_VER)
+  InterlockedExchange(&semaphore_mutex,0L);
+#endif
+}
 
 static void
 dummy_composite_rect (pixman_implementation_t *imp,
@@ -88,7 +110,12 @@ _pixman_implementation_lookup_composite (pixman_implementation_t  *toplevel,
     int i;
 
     /* Check cache for fast paths */
+#if defined(_MSC_VER)
+    lock_semaphore_mutex();
+    cache = &fast_path_cache;
+#else
     cache = PIXMAN_GET_THREAD_LOCAL (fast_path_cache);
+#endif
 
     for (i = 0; i < N_CACHED_FAST_PATHS; ++i)
     {
@@ -149,6 +176,7 @@ _pixman_implementation_lookup_composite (pixman_implementation_t  *toplevel,
 	}
     }
 
+    unlock_semaphore_mutex();
     /* We should never reach this point */
     _pixman_log_error (
         FUNC,
@@ -177,6 +205,7 @@ update_cache:
 	cache->cache[0].fast_path.dest_flags = dest_flags;
 	cache->cache[0].fast_path.func = *out_func;
     }
+    unlock_semaphore_mutex();
 }
 
 static void

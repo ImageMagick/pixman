@@ -174,9 +174,9 @@
 #elif defined(_MSC_VER)
 
 #   define PIXMAN_DEFINE_THREAD_LOCAL(type, name)			\
-    static __declspec(thread) type name
+    fix static __declspec(thread) type name
 #   define PIXMAN_GET_THREAD_LOCAL(name)				\
-    (&name)
+    fix (&name)
 
 #elif defined(HAVE_PTHREAD_SETSPECIFIC)
 
