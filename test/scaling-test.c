@@ -73,7 +73,7 @@ test_composite (int      testnum,
     pixman_op_t        op;
     pixman_repeat_t    repeat = PIXMAN_REPEAT_NONE;
     pixman_repeat_t    mask_repeat = PIXMAN_REPEAT_NONE;
-    pixman_format_code_t src_fmt, dst_fmt;
+    pixman_format_code_t src_fmt, mask_fmt, dst_fmt;
     uint32_t *         srcbuf;
     uint32_t *         dstbuf;
     uint32_t *         maskbuf;
@@ -145,13 +145,32 @@ test_composite (int      testnum,
     prng_randmemset (dstbuf, dst_stride * dst_height, 0);
 
     src_fmt = get_format (src_bpp);
+    mask_fmt = PIXMAN_a8;
     dst_fmt = get_format (dst_bpp);
+
+    if (prng_rand_n (2))
+    {
+	srcbuf += (src_stride / 4) * (src_height - 1);
+	src_stride = - src_stride;
+    }
+
+    if (prng_rand_n (2))
+    {
+	maskbuf += (mask_stride / 4) * (mask_height - 1);
+	mask_stride = - mask_stride;
+    }
+
+    if (prng_rand_n (2))
+    {
+	dstbuf += (dst_stride / 4) * (dst_height - 1);
+	dst_stride = - dst_stride;
+    }
 
     src_img = pixman_image_create_bits (
         src_fmt, src_width, src_height, srcbuf, src_stride);
 
     mask_img = pixman_image_create_bits (
-        PIXMAN_a8, mask_width, mask_height, maskbuf, mask_stride);
+        mask_fmt, mask_width, mask_height, maskbuf, mask_stride);
 
     dst_img = pixman_image_create_bits (
         dst_fmt, dst_width, dst_height, dstbuf, dst_stride);
@@ -237,21 +256,6 @@ test_composite (int      testnum,
     else
 	pixman_image_set_filter (mask_img, PIXMAN_FILTER_BILINEAR, NULL, 0);
 
-    if (verbose)
-    {
-	printf ("src_fmt=%s, dst_fmt=%s\n", 
-		format_name (src_fmt), format_name (dst_fmt));
-	printf ("op=%s, scale_x=%d, scale_y=%d, repeat=%d\n",
-	        operator_name (op), scale_x, scale_y, repeat);
-	printf ("translate_x=%d, translate_y=%d\n",
-	        translate_x, translate_y);
-	printf ("src_width=%d, src_height=%d, dst_width=%d, dst_height=%d\n",
-	        src_width, src_height, dst_width, dst_height);
-	printf ("src_x=%d, src_y=%d, dst_x=%d, dst_y=%d\n",
-	        src_x, src_y, dst_x, dst_y);
-	printf ("w=%d, h=%d\n", w, h);
-    }
-
     if (prng_rand_n (8) == 0)
     {
 	pixman_box16_t clip_boxes[2];
@@ -334,39 +338,66 @@ test_composite (int      testnum,
     }
 
     if (prng_rand_n (2) == 0)
-	pixman_image_composite (op, src_img, NULL, dst_img,
-                            src_x, src_y, 0, 0, dst_x, dst_y, w, h);
-    else
-	pixman_image_composite (op, src_img, mask_img, dst_img,
-                            src_x, src_y, mask_x, mask_y, dst_x, dst_y, w, h);
-
-    if (dst_fmt == PIXMAN_x8r8g8b8 || dst_fmt == PIXMAN_x8b8g8r8)
     {
-	/* ignore unused part */
-	for (i = 0; i < dst_stride * dst_height / 4; i++)
-	    dstbuf[i] &= 0xFFFFFF;
+	mask_fmt = PIXMAN_null;
+	pixman_image_unref (mask_img);
+	mask_img = NULL;
+	mask_x = 0;
+	mask_y = 0;
     }
-
-    image_endian_swap (dst_img);
 
     if (verbose)
     {
-	int j;
-	
-	for (i = 0; i < dst_height; i++)
+	printf ("op=%s, src_fmt=%s, mask_fmt=%s, dst_fmt=%s\n",
+	        operator_name (op), format_name (src_fmt),
+	        format_name (mask_fmt), format_name (dst_fmt));
+	printf ("scale_x=%d, scale_y=%d, repeat=%d, filter=%d\n",
+	        scale_x, scale_y, repeat, src_img->common.filter);
+	printf ("translate_x=%d, translate_y=%d\n",
+	        translate_x, translate_y);
+	if (mask_fmt != PIXMAN_null)
 	{
-	    for (j = 0; j < dst_stride; j++)
-		printf ("%02X ", *((uint8_t *)dstbuf + i * dst_stride + j));
-
-	    printf ("\n");
+	    printf ("mask_scale_x=%d, mask_scale_y=%d, "
+	            "mask_repeat=%d, mask_filter=%d\n",
+	            mask_scale_x, mask_scale_y, mask_repeat,
+	            mask_img->common.filter);
+	    printf ("mask_translate_x=%d, mask_translate_y=%d\n",
+	            mask_translate_x, mask_translate_y);
 	}
+	printf ("src_width=%d, src_height=%d, src_x=%d, src_y=%d\n",
+	        src_width, src_height, src_x, src_y);
+	if (mask_fmt != PIXMAN_null)
+	{
+	    printf ("mask_width=%d, mask_height=%d, mask_x=%d, mask_y=%d\n",
+	            mask_width, mask_height, mask_x, mask_y);
+	}
+	printf ("dst_width=%d, dst_height=%d, dst_x=%d, dst_y=%d\n",
+	        dst_width, dst_height, dst_x, dst_y);
+	printf ("w=%d, h=%d\n", w, h);
     }
 
+    pixman_image_composite (op, src_img, mask_img, dst_img,
+                            src_x, src_y, mask_x, mask_y, dst_x, dst_y, w, h);
+
+    crc32 = compute_crc32_for_image (0, dst_img);
+    
+    if (verbose)
+	print_image (dst_img);
+
     pixman_image_unref (src_img);
-    pixman_image_unref (mask_img);
+    if (mask_img != NULL)
+	pixman_image_unref (mask_img);
     pixman_image_unref (dst_img);
 
-    crc32 = compute_crc32 (0, dstbuf, dst_stride * dst_height);
+    if (src_stride < 0)
+	srcbuf += (src_stride / 4) * (src_height - 1);
+
+    if (mask_stride < 0)
+	maskbuf += (mask_stride / 4) * (mask_height - 1);
+
+    if (dst_stride < 0)
+	dstbuf += (dst_stride / 4) * (dst_height - 1);
+
     free (srcbuf);
     free (maskbuf);
     free (dstbuf);
@@ -375,12 +406,10 @@ test_composite (int      testnum,
     return crc32;
 }
 
-#if BILINEAR_INTERPOLATION_BITS == 8
-#define CHECKSUM 0x9096E6B6
-#elif BILINEAR_INTERPOLATION_BITS == 7
-#define CHECKSUM 0xCE8EC6BA
+#if BILINEAR_INTERPOLATION_BITS == 7
+#define CHECKSUM 0x92E0F068
 #elif BILINEAR_INTERPOLATION_BITS == 4
-#define CHECKSUM 0xAB1D39BE
+#define CHECKSUM 0x8EFFA1E5
 #else
 #define CHECKSUM 0x00000000
 #endif

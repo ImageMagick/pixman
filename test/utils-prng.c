@@ -27,7 +27,7 @@
 #include "utils.h"
 #include "utils-prng.h"
 
-#if defined(GCC_VECTOR_EXTENSIONS_SUPPORTED) && defined(__SSE2__)
+#if defined(HAVE_GCC_VECTOR_EXTENSIONS) && defined(__SSE2__)
 #include <xmmintrin.h>
 #endif
 
@@ -52,7 +52,7 @@ void smallprng_srand_r (smallprng_t *x, uint32_t seed)
  */
 void prng_srand_r (prng_t *x, uint32_t seed)
 {
-#ifdef GCC_VECTOR_EXTENSIONS_SUPPORTED
+#ifdef HAVE_GCC_VECTOR_EXTENSIONS
     int i;
     prng_rand_128_data_t dummy;
     smallprng_srand_r (&x->p0, seed);
@@ -75,7 +75,7 @@ void prng_srand_r (prng_t *x, uint32_t seed)
 static force_inline void
 store_rand_128_data (void *addr, prng_rand_128_data_t *d, int aligned)
 {
-#ifdef GCC_VECTOR_EXTENSIONS_SUPPORTED
+#ifdef HAVE_GCC_VECTOR_EXTENSIONS
     if (aligned)
     {
         *(uint8x16 *)addr = d->vb;
@@ -120,7 +120,7 @@ randmemset_internal (prng_t                  *prng,
         {
             prng_rand_128_r (&local_prng, &t);
             prng_rand_128_r (&local_prng, &randdata);
-#ifdef GCC_VECTOR_EXTENSIONS_SUPPORTED
+#ifdef HAVE_GCC_VECTOR_EXTENSIONS
             if (flags & RANDMEMSET_MORE_FF)
             {
                 const uint8x16 const_C0 =
@@ -199,12 +199,25 @@ randmemset_internal (prng_t                  *prng,
         }
         else
         {
-#ifdef GCC_VECTOR_EXTENSIONS_SUPPORTED
-            const uint8x16 bswap_shufflemask =
+
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+
+#ifdef HAVE_GCC_VECTOR_EXTENSIONS
+# if __has_builtin(__builtin_shufflevector)
+            randdata.vb =
+                __builtin_shufflevector (randdata.vb, randdata.vb,
+                                          3,  2,  1,  0,  7,  6 , 5,  4,
+                                         11, 10,  9,  8, 15, 14, 13, 12);
+# else
+            static const uint8x16 bswap_shufflemask =
             {
                 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12
             };
             randdata.vb = __builtin_shuffle (randdata.vb, bswap_shufflemask);
+# endif
+
             store_rand_128_data (buf, &randdata, aligned);
             buf += 16;
 #else

@@ -12,8 +12,10 @@ noinst_LTLIBRARIES =
 
 EXTRA_DIST =				\
 	Makefile.win32			\
+	dither/make-blue-noise.c	\
 	pixman-region.c			\
 	solaris-hwcap.mapfile		\
+	meson.build			\
 	$(NULL)
 
 # mmx code
@@ -52,6 +54,18 @@ libpixman_1_la_LIBADD += libpixman-sse2.la
 ASM_CFLAGS_sse2=$(SSE2_CFLAGS)
 endif
 
+# ssse3 code
+if USE_SSSE3
+noinst_LTLIBRARIES += libpixman-ssse3.la
+libpixman_ssse3_la_SOURCES = \
+	pixman-ssse3.c
+libpixman_ssse3_la_CFLAGS = $(SSSE3_CFLAGS)
+libpixman_1_la_LDFLAGS += $(SSSE3_LDFLAGS)
+libpixman_1_la_LIBADD += libpixman-ssse3.la
+
+ASM_CFLAGS_ssse3=$(SSSE3_CFLAGS)
+endif
+
 # arm simd code
 if USE_ARM_SIMD
 noinst_LTLIBRARIES += libpixman-arm-simd.la
@@ -60,6 +74,7 @@ libpixman_arm_simd_la_SOURCES = \
 	pixman-arm-common.h	\
 	pixman-arm-simd-asm.S   \
 	pixman-arm-simd-asm-scaled.S \
+	pixman-arm-asm.h	\
 	pixman-arm-simd-asm.h
 libpixman_1_la_LIBADD += libpixman-arm-simd.la
 
@@ -74,6 +89,7 @@ libpixman_arm_neon_la_SOURCES = \
         pixman-arm-common.h	\
         pixman-arm-neon-asm.S	\
 		pixman-arm-neon-asm-bilinear.S \
+        pixman-arm-asm.h	\
         pixman-arm-neon-asm.h
 libpixman_1_la_LIBADD += libpixman-arm-neon.la
 

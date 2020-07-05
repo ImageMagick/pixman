@@ -95,6 +95,8 @@
 /* Sun Studio 8 visibility */
 #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
 #   define PIXMAN_EXPORT __global
+#elif defined (_MSC_VER) || defined(__MINGW32__)
+#   define PIXMAN_EXPORT PIXMAN_API
 #else
 #   define PIXMAN_EXPORT
 #endif
@@ -174,11 +176,11 @@
 #elif defined(_MSC_VER)
 
 #   define PIXMAN_DEFINE_THREAD_LOCAL(type, name)			\
-    fix static __declspec(thread) type name
+    static __declspec(thread) type name
 #   define PIXMAN_GET_THREAD_LOCAL(name)				\
-    fix (&name)
+    (&name)
 
-#elif defined(HAVE_PTHREAD_SETSPECIFIC)
+#elif defined(HAVE_PTHREADS)
 
 #include <pthread.h>
 

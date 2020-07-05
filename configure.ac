@@ -53,13 +53,13 @@ AC_PREREQ([2.57])
 #
 
 m4_define([pixman_major], 0)
-m4_define([pixman_minor], 30)
-m4_define([pixman_micro], 2)
+m4_define([pixman_minor], 40)
+m4_define([pixman_micro], 0)
 
 m4_define([pixman_version],[pixman_major.pixman_minor.pixman_micro])
 
 AC_INIT(pixman, pixman_version, [pixman@lists.freedesktop.org], pixman)
-AM_INIT_AUTOMAKE([foreign dist-bzip2])
+AM_INIT_AUTOMAKE([foreign dist-xz])
 
 # Suppress verbose compile lines
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -183,6 +183,8 @@ AC_SUBST(LT_VERSION_INFO)
 # Check for dependencies
 
 PIXMAN_CHECK_CFLAG([-Wall])
+PIXMAN_CHECK_CFLAG([-Wdeclaration-after-statement])
+PIXMAN_CHECK_CFLAG([-Wno-unused-local-typedefs])
 PIXMAN_CHECK_CFLAG([-fno-strict-aliasing])
 
 dnl =========================================================================
@@ -271,7 +273,7 @@ dnl ===========================================================================
 dnl Check for Loongson Multimedia Instructions
 
 if test "x$LS_CFLAGS" = "x" ; then
-    LS_CFLAGS="-march=loongson2f"
+    LS_CFLAGS="-mloongson-mmi"
 fi
 
 have_loongson_mmi=no
@@ -345,14 +347,32 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #error "Need GCC >= 3.4 for MMX intrinsics"
 #endif
 #include <mmintrin.h>
+#include <stdint.h>
+
+/* Check support for block expressions */
+#define _mm_shuffle_pi16(A, N)						\
+    ({									\
+	__m64 ret;							\
+									\
+	/* Some versions of clang will choke on K */ 			\
+	asm ("pshufw %2, %1, %0\n\t"					\
+	     : "=y" (ret)						\
+	     : "y" (A), "K" ((const int8_t)N)				\
+	);								\
+									\
+	ret;								\
+    })
+
 int main () {
     __m64 v = _mm_cvtsi32_si64 (1);
     __m64 w;
 
-    /* Some versions of clang will choke on K */
-    asm ("pshufw %2, %1, %0\n\t"
-        : "=y" (w)
-        : "y" (v), "K" (5)
+    w = _mm_shuffle_pi16(v, 5);
+
+    /* Some versions of clang will choke on this */
+    asm ("pmulhuw %1, %0\n\t"
+	: "+y" (w)
+	: "y" (v)
     );
 
     return _mm_cvtsi64_si32 (v);
@@ -409,10 +429,11 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #include <mmintrin.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>
+int param;
 int main () {
-    __m128i a = _mm_set1_epi32 (0), b = _mm_set1_epi32 (0), c;
+    __m128i a = _mm_set1_epi32 (param), b = _mm_set1_epi32 (param + 1), c;
 	c = _mm_xor_si128 (a, b);
-    return 0;
+    return _mm_cvtsi128_si32(c);
 }]])], have_sse2_intrinsics=yes)
 CFLAGS=$xserver_save_CFLAGS
 
@@ -435,6 +456,51 @@ if test $enable_sse2 = yes && test $have_sse2_intrinsics = no ; then
 fi
 
 AM_CONDITIONAL(USE_SSE2, test $have_sse2_intrinsics = yes)
+
+dnl ===========================================================================
+dnl Check for SSSE3
+
+if test "x$SSSE3_CFLAGS" = "x" ; then
+    SSSE3_CFLAGS="-mssse3 -Winline"
+fi
+
+have_ssse3_intrinsics=no
+AC_MSG_CHECKING(whether to use SSSE3 intrinsics)
+xserver_save_CFLAGS=$CFLAGS
+CFLAGS="$SSSE3_CFLAGS $CFLAGS"
+
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#include <mmintrin.h>
+#include <xmmintrin.h>
+#include <emmintrin.h>
+#include <tmmintrin.h>
+int param;
+int main () {
+    __m128i a = _mm_set1_epi32 (param), b = _mm_set1_epi32 (param + 1), c;
+    c = _mm_maddubs_epi16 (a, b);
+    return _mm_cvtsi128_si32(c);
+}]])], have_ssse3_intrinsics=yes)
+CFLAGS=$xserver_save_CFLAGS
+
+AC_ARG_ENABLE(ssse3,
+   [AC_HELP_STRING([--disable-ssse3],
+                   [disable SSSE3 fast paths])],
+   [enable_ssse3=$enableval], [enable_ssse3=auto])
+
+if test $enable_ssse3 = no ; then
+   have_ssse3_intrinsics=disabled
+fi
+
+if test $have_ssse3_intrinsics = yes ; then
+   AC_DEFINE(USE_SSSE3, 1, [use SSSE3 compiler intrinsics])
+fi
+
+AC_MSG_RESULT($have_ssse3_intrinsics)
+if test $enable_ssse3 = yes && test $have_ssse3_intrinsics = no ; then
+   AC_MSG_ERROR([SSSE3 intrinsics not detected])
+fi
+
+AM_CONDITIONAL(USE_SSSE3, test $have_ssse3_intrinsics = yes)
 
 dnl ===========================================================================
 dnl Other special flags needed when building code using MMX or SSE instructions
@@ -471,6 +537,7 @@ AC_SUBST(MMX_CFLAGS)
 AC_SUBST(MMX_LDFLAGS)
 AC_SUBST(SSE2_CFLAGS)
 AC_SUBST(SSE2_LDFLAGS)
+AC_SUBST(SSSE3_CFLAGS)
 
 dnl ===========================================================================
 dnl Check for VMX/Altivec
@@ -631,8 +698,8 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #ifndef __IWMMXT__
 #error "IWMMXT not enabled (with -march=iwmmxt)"
 #endif
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5))
-#error "Need GCC >= 4.5 for IWMMXT intrinsics"
+#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
+#error "Need GCC >= 4.8 for IWMMXT intrinsics"
 #endif
 #include <mmintrin.h>
 int main () {
@@ -767,6 +834,19 @@ fi
 AC_SUBST(PIXMAN_TIMERS)
 
 dnl ===================================
+dnl gnuplot
+
+AC_ARG_ENABLE(gnuplot,
+   [AC_HELP_STRING([--enable-gnuplot],
+                   [enable output of filters that can be piped to gnuplot [default=no]])],
+   [enable_gnuplot=$enableval], [enable_gnuplot=no])
+
+if test $enable_gnuplot = yes ; then
+   AC_DEFINE(PIXMAN_GNUPLOT, 1, [enable output that can be piped to gnuplot])
+fi
+AC_SUBST(PIXMAN_GNUPLOT)
+
+dnl ===================================
 dnl GTK+
 
 AC_ARG_ENABLE(gtk,
@@ -837,6 +917,11 @@ AC_CHECK_LIB(m, feenableexcept, have_feenableexcept=yes, have_feenableexcept=no)
 if test x$have_feenableexcept = xyes; then
    AC_DEFINE(HAVE_FEENABLEEXCEPT, 1, [Whether we have feenableexcept()])
 fi
+
+AC_CHECK_DECL([FE_DIVBYZERO],
+	[AC_DEFINE(HAVE_FEDIVBYZERO, 1, [Whether we have FE_DIVBYZERO])],
+	[],
+	[[#include <fenv.h>]])
 
 AC_CHECK_FUNC(gettimeofday, have_gettimeofday=yes, have_gettimeofday=no)
 AC_CHECK_HEADER(sys/time.h, have_sys_time_h=yes, have_sys_time_h=no)
@@ -916,37 +1001,38 @@ main ()
 ]]))
 
 AC_DEFUN([PIXMAN_CHECK_PTHREAD],[dnl
-    if test "z$support_for_pthread_setspecific" != "zyes"; then
+    if test "z$support_for_pthreads" != "zyes"; then
 	PIXMAN_LINK_WITH_ENV(
 		[$1], [pthread_test_program],
 		[PTHREAD_CFLAGS="$CFLAGS"
 		 PTHREAD_LIBS="$LIBS"
 		 PTHREAD_LDFLAGS="$LDFLAGS"
-		 support_for_pthread_setspecific=yes])
+		 support_for_pthreads=yes])
     fi
 ])
 
-if test $ac_cv_tls = none ; then
-    support_for_pthread_setspecific=no
+support_for_pthreads=no
 
-    AC_MSG_CHECKING(for pthread_setspecific)
+AC_MSG_CHECKING(for pthreads)
 
-    PIXMAN_CHECK_PTHREAD([CFLAGS="-pthread"; LDFLAGS="-pthread"])
-    PIXMAN_CHECK_PTHREAD([CFLAGS="-D_REENTRANT"; LIBS="-lpthread"])
-    PIXMAN_CHECK_PTHREAD([CFLAGS="-D_REENTRANT"; LDFLAGS="-lroot"])
+PIXMAN_CHECK_PTHREAD([CFLAGS="-pthread"; LDFLAGS="-pthread"])
+PIXMAN_CHECK_PTHREAD([CFLAGS="-D_REENTRANT"; LIBS="-lpthread"])
+PIXMAN_CHECK_PTHREAD([CFLAGS="-D_REENTRANT"; LDFLAGS="-lroot"])
     
-    if test $support_for_pthread_setspecific = yes; then
-	CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-	AC_DEFINE([HAVE_PTHREAD_SETSPECIFIC], [], [Whether pthread_setspecific() is supported])
+if test $support_for_pthreads = yes; then
+    AC_DEFINE([HAVE_PTHREADS], [], [Whether pthreads is supported])
+    if test $ac_cv_tls = none ; then
+        CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
     fi
-
-    AC_MSG_RESULT($support_for_pthread_setspecific);
 fi
 
+AC_MSG_RESULT($support_for_pthreads)
+
 AC_SUBST(TOOLCHAIN_SUPPORTS__THREAD)
-AC_SUBST(HAVE_PTHREAD_SETSPECIFIC)
+AC_SUBST(HAVE_PTHREADS)
 AC_SUBST(PTHREAD_LDFLAGS)
 AC_SUBST(PTHREAD_LIBS)
+AC_SUBST(PTHREAD_CFLAGS)
 
 dnl =====================================
 dnl __attribute__((constructor))
@@ -990,6 +1076,40 @@ if test x$support_for_float128 = xyes; then
 fi
 
 AC_MSG_RESULT($support_for_float128)
+
+dnl =====================================
+dnl __builtin_clz
+
+support_for_builtin_clz=no
+
+AC_MSG_CHECKING(for __builtin_clz)
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+unsigned int x = 11; int main (void) { return __builtin_clz(x); }
+]])], support_for_builtin_clz=yes)
+
+if test x$support_for_builtin_clz = xyes; then
+   AC_DEFINE([HAVE_BUILTIN_CLZ], [], [Whether the compiler supports __builtin_clz])
+fi
+
+AC_MSG_RESULT($support_for_builtin_clz)
+
+dnl =====================================
+dnl GCC vector extensions
+
+support_for_gcc_vector_extensions=no
+
+AC_MSG_CHECKING(for GCC vector extensions)
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+unsigned int __attribute__ ((vector_size(16))) e, a, b;
+int main (void) { e = a - ((b << 27) + (b >> (32 - 27))) + 1; return e[0]; }
+]])], support_for_gcc_vector_extensions=yes)
+
+if test x$support_for_gcc_vector_extensions = xyes; then
+   AC_DEFINE([HAVE_GCC_VECTOR_EXTENSIONS], [],
+             [Whether the compiler supports GCC vector extensions])
+fi
+
+AC_MSG_RESULT($support_for_gcc_vector_extensions)
 
 dnl ==================
 dnl libpng
