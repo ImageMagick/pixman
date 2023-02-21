@@ -1171,9 +1171,7 @@ AC_OUTPUT([pixman-1.pc
            pixman-1-uninstalled.pc
            Makefile
 	   pixman/Makefile
-	   pixman/pixman-version.h
-	   demos/Makefile
-	   test/Makefile])
+	   pixman/pixman-version.h])
 
 m4_if(m4_eval(pixman_minor % 2), [1], [
    echo
