@@ -1,4 +1,4 @@
-SUBDIRS = pixman
+SUBDIRS = pixman demos test
 
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=pixman-1.pc
@@ -27,6 +27,7 @@ EXTRA_DIST =				\
 	meson.build			\
 	meson_options.txt		\
 	neon-test.S			\
+	a64-neon-test.S			\
 	arm-simd-test.S			\
 	$(NULL)
 
@@ -75,7 +76,7 @@ release-remove-old:
 	$(RM) $(tar_gz) $(tar_xz) $(HASHFILES) $(gpg_file)
 
 ensure-prev:
-	@if [[ "$(PREV)" == "" ]]; then							\
+	@if [ "$(PREV)" = "" ]; then							\
 		echo ""							          &&	\
 		echo "You must set the PREV variable on the make command line to" &&	\
 		echo "the last version."				  	  &&	\
