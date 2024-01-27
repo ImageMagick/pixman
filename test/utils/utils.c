@@ -1249,6 +1249,7 @@ static const format_entry_t format_list[] =
 
 /* sRGB formats */
     ENTRY (a8r8g8b8_sRGB),
+    ENTRY (r8g8b8_sRGB),
 
 /* 24bpp formats */
     ENTRY (r8g8b8),

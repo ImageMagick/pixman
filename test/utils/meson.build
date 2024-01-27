@@ -18,49 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-extra_demo_cflags = []
-if cc.get_argument_syntax() == 'msvc'
-  extra_demo_cflags = ['-D_USE_MATH_DEFINES']
-endif
+libtestutils = static_library(
+  'testutils',
+  ['utils.c', 'utils-prng.c', config_h],
+  dependencies : [idep_pixman, dep_openmp, dep_m, dep_png],
+)
 
-demos = [
-  'gradient-test',
-  'alpha-test',
-  'composite-test',
-  'clip-test',
-  'trap-test',
-  'screen-test',
-  'convolution-test',
-  'radial-test',
-  'linear-gradient',
-  'conical-test',
-  'tri-test',
-  'checkerboard',
-  'srgb-test',
-  'srgb-trap-test',
-  'scale',
-  'dither',
-]
+libtestutils_dep = declare_dependency(
+  link_with: libtestutils,
+  include_directories: include_directories('.'),
+)
 
-if dep_gtk.found()
-
-  libdemo = static_library(
-    'demo',
-    ['gtk-utils.c', config_h, version_h],
-    dependencies : [libtestutils_dep, dep_gtk, dep_glib, dep_png, dep_m, dep_openmp],
-    include_directories : inc_pixman,
-  )
-
-  if dep_gtk.found()
-    foreach d : demos
-      executable(
-        d,
-        [d + '.c', config_h, version_h],
-        c_args : extra_demo_cflags,
-        link_with : [libdemo],
-        dependencies : [idep_pixman, libtestutils_dep, dep_glib, dep_gtk, dep_openmp, dep_png],
-      )
-    endforeach
-  endif
-
-endif
