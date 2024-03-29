@@ -9,6 +9,9 @@ PACKAGE
 [DIRECTORIES]
 pixman
 
+[INCLUDES]
+pixman
+
 [EXCLUDES]
 pixman-arm-detect-win32.asm
 pixman-arm-neon.c
