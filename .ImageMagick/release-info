@@ -1,2 +1,2 @@
 https://gitlab.freedesktop.org/pixman/pixman/-/tags
-pixman-([0-9]+\.[0-9]+\.[0-9]+)
+pixman-\K([0-9]+\.[0-9]+\.[0-9]+)
