@@ -19,6 +19,7 @@ pixman-arm-simd.c
 pixman-mips-dspr2.c
 pixman-mmx.c
 pixman-region.c
+pixman-rvv.c
 pixman-vmx.c
 
 [EXCLUDES_ARM64]
