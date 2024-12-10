@@ -27,7 +27,7 @@ version_h = configure_file(
   configuration : version_conf,
   input : 'pixman-version.h.in',
   output : 'pixman-version.h',
-  install_dir : join_paths(get_option('prefix'), get_option('includedir'), 'pixman-1')
+  install_dir : get_option('prefix') / get_option('includedir') / 'pixman-1'
 )
 
 libpixman_extra_cargs = []
@@ -135,9 +135,6 @@ idep_pixman = declare_dependency(
   link_with: libpixman,
   include_directories : inc_pixman,
 )
-
-if meson.version().version_compare('>= 0.54.0')
-  meson.override_dependency('pixman-1', idep_pixman)
-endif
+meson.override_dependency('pixman-1', idep_pixman)
 
 install_headers('pixman.h', subdir : 'pixman-1')
