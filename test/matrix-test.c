@@ -219,6 +219,8 @@ test_matrix (int testnum, int verbose)
                 }
             }
         }
+#else
+        (void)transform_ok;
 #endif
         byteswap_vector_48_16 (&result_i);
         crc32 = compute_crc32 (crc32, &result_i, sizeof (result_i));

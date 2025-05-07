@@ -13,6 +13,7 @@ static const pixman_format_code_t image_formats[] =
 {
     PIXMAN_rgba_float,
     PIXMAN_rgb_float,
+    PIXMAN_a16b16g16r16,
     PIXMAN_a8r8g8b8,
     PIXMAN_x8r8g8b8,
     PIXMAN_r5g6b5,

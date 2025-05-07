@@ -1228,6 +1228,9 @@ static const format_entry_t format_list[] =
 /* 96bpp formats */
     ENTRY (rgb_float),
 
+/* 64bpp formats */
+    ENTRY (a16b16g16r16),
+
 /* 32bpp formats */
     ENTRY (a8r8g8b8),
     ALIAS (a8r8g8b8,		"8888"),

@@ -1,0 +1,12 @@
+[binaries]
+c = 'aarch64-w64-mingw32-clang'
+ar = 'aarch64-w64-mingw32-llvm-ar'
+strip = 'aarch64-w64-mingw32-strip'
+windres = 'aarch64-w64-mingw32-windres'
+exe_wrapper = 'wine'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
