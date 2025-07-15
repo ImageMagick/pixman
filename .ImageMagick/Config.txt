@@ -1,4 +1,4 @@
-[STATIC]
+[STATIC_LIBRARY]
 
 [LICENSE]
 COPYING
@@ -6,23 +6,25 @@ COPYING
 [DEFINES]
 PACKAGE
 
-[DIRECTORIES]
-pixman
-
 [INCLUDES]
 pixman
 
+[INCLUDE_ARTIFACTS]
+pixman\pixman.h -> .
+pixman\pixman-version.h -> .
+
 [EXCLUDES]
-pixman-arm-detect-win32.asm
-pixman-arm-neon.c
-pixman-arm-simd.c
-pixman-mips-dspr2.c
-pixman-mmx.c
-pixman-region.c
-pixman-rvv.c
-pixman-vmx.c
+demos\
+pixman\pixman-arm-detect-win32.asm
+pixman\pixman-arm-neon.c
+pixman\pixman-arm-simd.c
+pixman\pixman-mips-dspr2.c
+pixman\pixman-mmx.c
+pixman\pixman-region.c
+pixman\pixman-rvv.c
+pixman\pixman-vmx.c
+test\
 
 [EXCLUDES_ARM64]
-pixman-sse2.c
-pixman-sse3.c
-pixman-ssse3.c
+pixman\pixman-sse2.c
+pixman\pixman-ssse3.c
