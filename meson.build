@@ -21,7 +21,7 @@
 project(
   'pixman',
   ['c'],
-  version : '0.46.0',
+  version : '0.46.4',
   license : 'MIT',
   meson_version : '>= 1.3.0',
   default_options : ['c_std=gnu99,c99', 'buildtype=debugoptimized'],
@@ -372,11 +372,21 @@ if not use_rvv.disabled()
   if host_machine.cpu_family() == 'riscv64'
     if cc.compiles('''
         #include <riscv_vector.h>
-        #include <asm/hwcap.h>
-        #ifndef COMPAT_HWCAP_ISA_V /* added in linux-6.5 */
-        #error "COMPAT_HWCAP_ISA_V is not available"
+        #include <asm/hwprobe.h>
+        #include <linux/version.h>
+        #include <sys/auxv.h>
+        #include <sys/syscall.h>
+        #include <unistd.h>
+
+        #if defined(__riscv_v) && __riscv_v < 1000000
+        #error "Minimum supported RVV is 1.0"
+        #endif
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
+        #error "Minimum supported kernel is 6.5.0"
         #endif
         int main() {
+            struct riscv_hwprobe pair = {RISCV_HWPROBE_KEY_IMA_EXT_0, 0};
+            long result = sys_riscv_hwprobe (&pair, 1, 0, 0, 0);
             vfloat32m1_t tmp1; /* added in gcc-13 */
             vfloat32m1x4_t tmp2; /* added in gcc-14 */
             return 0;

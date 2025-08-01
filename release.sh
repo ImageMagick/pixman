@@ -48,7 +48,7 @@ announce="pixman-$version.eml"
 
 distdir="${build_dir}/meson-dist"
 
-git tag -m "pixman $version release" "pixman-$version"
+git tag -s -m "pixman $version release" "pixman-$version"
 
 meson setup "${build_dir}"
 meson dist -C "${build_dir}" --formats xztar,gztar

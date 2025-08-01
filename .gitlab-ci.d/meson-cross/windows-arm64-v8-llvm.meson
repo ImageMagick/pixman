@@ -5,6 +5,9 @@ strip = 'aarch64-w64-mingw32-strip'
 windres = 'aarch64-w64-mingw32-windres'
 exe_wrapper = 'wine'
 
+[project options]
+openmp = 'disabled'
+
 [host_machine]
 system = 'windows'
 cpu_family = 'aarch64'

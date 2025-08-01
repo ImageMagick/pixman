@@ -117,7 +117,6 @@ include:
         - ""
         - "fast"
         - "wholeops"
-      allow_failure: true  # TODO: https://gitlab.freedesktop.org/pixman/pixman/-/issues/122
   - local: .gitlab-ci.d/templates/test.yml
     inputs:
       target: windows-arm64-v8
