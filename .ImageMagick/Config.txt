@@ -1,5 +1,23 @@
 [STATIC_LIBRARY]
 
+[VERSION]
+0.46.4
+
+[RELEASE_DATE]
+2025-07-20
+
+[PRODUCT_NAME]
+pixman
+
+[COMPANY_NAME]
+SuSE, Inc.
+
+[URL]
+https://gitlab.freedesktop.org/pixman/pixman
+
+[COPYRIGHT]
+ Copyright © 2000 SuSE, Inc.
+
 [LICENSE_FILE]
 COPYING
 
